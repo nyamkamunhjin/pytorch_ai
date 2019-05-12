@@ -52,9 +52,9 @@ def softmax(output):
 # Hidden Layer 2 -> [1 64]
 # Output Layer -> [1 10]
 # Equation -> y = ((trainX * weights1 + bias1) * weights2 + bias2) * weights3 + bias3
-weights1 = t.rand(64, 784).float()
-bias1 = t.rand(64, 1).float()
-weights2 = t.ones(10, 64).float()
+weights1 = t.rand(300, 784).float()
+bias1 = t.rand(300, 1).float()
+weights2 = t.ones(10, 300).float()
 bias2 = t.rand(10, 1).float()
 # put variables to GPU
 trainX = trainX.to(device)
@@ -68,9 +68,9 @@ testY = testY.to(device)
 # bias3 = bias3.to(device)
 
 #%%
-epoch = 10000
-learningRate = 1
-batchSize = 55000
+epoch = 50
+learningRate = 0.03
+batchSize = 50
 
 iteration = trainX.shape[0]
 for e in range(epoch):
@@ -112,8 +112,8 @@ for e in range(epoch):
         
         i += batchSize
 
-    
-    print('epoch:', e + 1, ' error:', error)
+        if i % (trainX.shape[0]) == 0:
+            print('epoch:', e + 1, ' error:', error)
     
 #%%
 def predict(X):
