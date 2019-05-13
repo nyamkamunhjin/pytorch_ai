@@ -42,8 +42,8 @@ def error_formula(y, y_hat):
     return loss_sum / y.shape[1]
 
 def softmax(output):
-    expOutput = t.exp(output / output.sum(dim=0))
-    # expOutput = t.exp(output)
+    # expOutput = t.exp(output / output.mean(dim=0))
+    expOutput = t.exp(output)
     return t.div(expOutput, expOutput.sum(dim=0).reshape(-1, expOutput.shape[1]))
 #%%
 # define neural network
@@ -53,7 +53,7 @@ def softmax(output):
 # Hidden Layer 2 -> [1 64]
 # Output Layer -> [1 10]
 # Equation -> y = ((trainX * weights1 + bias1) * weights2 + bias2) * weights3 + bias3
-hidden1_node = 256
+hidden1_node = 512
 hidden2_node = 128
 weights1 = t.rand(hidden1_node, 784).float()
 bias1 = t.rand(hidden1_node, 1).float()
@@ -68,16 +68,20 @@ weights1 = weights1.to(device)
 bias1 = bias1.to(device)
 weights2 = weights2.to(device) # output
 bias2 = bias2.to(device)
+weights3 = weights3.to(device)
+bias3 = bias3.to(device)
+
 testX = testX.to(device)
 testY = testY.to(device)
 # bias3 = bias3.to(device)
 
-#%%
-epoch = 100
-learningRate = 0.05
-batchSize = 50
-
+epoch = 150
+learningRate = 0.001
+batchSize = 32
+# errors = []
 iteration = trainX.shape[0]
+#%%
+
 for e in range(epoch):
     i = 0
     while i < iteration:
@@ -107,17 +111,17 @@ for e in range(epoch):
         hidden1_errors = t.mm(weights2.t(), hidden2_errors)
 
         # weights3 -> hidden2 to output nodes
-        weights3_grad = t.mm(output_errors, activation2.t()) / batchSize
-        bias3_grad = (output_errors.sum(dim=1) / batchSize).reshape(output_errors.shape[0], 1)
+        weights3_grad = t.mm(output_errors, activation2.t())
+        bias3_grad = (output_errors.sum(dim=1)).reshape(output_errors.shape[0], 1)
         
         # weight2 -> hidden1 to hidden2 nodes
-        weights2_grad = t.mm(hidden2_errors * sigmoid_prime(activation2), activation1.t()) / batchSize
-        bias2_grad = (hidden2_errors.sum(dim=1) / batchSize).reshape(hidden2_errors.shape[0], 1)
+        weights2_grad = t.mm(hidden2_errors * sigmoid_prime(activation2), activation1.t())
+        bias2_grad = (hidden2_errors.sum(dim=1)).reshape(hidden2_errors.shape[0], 1)
         # print('debug: hidden error', hidden_errors)
 
         # weights1 -> input to hidden 1 nodes
-        weights1_grad = t.mm(hidden1_errors * sigmoid_prime(activation1), X.t()) / batchSize
-        bias1_grad = (hidden1_errors.sum(dim=1) / batchSize).reshape(hidden1_errors.shape[0], 1)
+        weights1_grad = t.mm(hidden1_errors * sigmoid_prime(activation1), X.t())
+        bias1_grad = (hidden1_errors.sum(dim=1)).reshape(hidden1_errors.shape[0], 1)
 
         # update weights
         weights3 += learningRate * weights3_grad
@@ -129,10 +133,24 @@ for e in range(epoch):
         
         i += batchSize 
 
-    # calculate the error
-    error = error_formula(Y, activation3)
-    print('epoch:', e + 1, ' error:', error)
-            
+    # # calculate the error
+    temp = error_formula(Y, activation3)
+    # if len(errors) > 0:
+    #     if temp > errors[-1]:
+    #         if learningRate - 0.0001 > 0.0001:
+    #             learningRate -= 0.0001
+    # errors.append(temp)
+    
+    print('epoch:', e + 1, ' error:', temp, 'lr', learningRate)
+
+    if temp < 0.06:
+        save_weights1 = weights1
+        save_weights2 = weights2
+        save_weights3 = weights3
+        save_bias1 = bias1
+        save_bias2 = bias2
+        save_bias3 = bias3
+        break
     
 #%%
 def predict(X):
