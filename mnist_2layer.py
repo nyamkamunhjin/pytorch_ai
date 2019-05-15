@@ -37,14 +37,34 @@ def sigmoid_prime(z):
     return sigmoid(z) * (t.ones(1).to(device) - sigmoid(z))
 
 def error_formula(y, y_hat):
-    # multi class error formula
-    loss_sum = - t.mul(y, t.log(y_hat)).sum()
+    # multi class cross entropy error formula
+    loss_sum = - t.mul(y, t.log(y_hat + 0.0000001)).sum()
     return loss_sum / y.shape[1]
 
 def softmax(output):
-    # expOutput = t.exp(output / output.mean(dim=0))
-    expOutput = t.exp(output)
+    expOutput = t.exp(output - output.max(0)[0])
     return t.div(expOutput, expOutput.sum(dim=0).reshape(-1, expOutput.shape[1]))
+
+def log_softmax(output):
+    r_output = output - output.max(0)[0]
+    return r_output - t.log(t.exp(r_output).sum(dim=0))
+
+def predict(X):
+	# Hidden Layer 1
+	hidden1 = t.mm(weights1, X.t()) + bias1
+	activation1 = sigmoid(hidden1)
+
+	# Hidden layer 2
+	hidden2 = t.mm(weights2, activation1) + bias2
+	activation2 = sigmoid(hidden2)
+	# Output Layer
+	output = t.mm(weights3, activation2) + bias3
+	activation3 = softmax(output)
+	return activation3
+
+def check_accuracy(testX, testY):
+    test = predict(testX)
+    return (test.max(0)[1] == testY.max(1)[1]).sum().float() / testY.shape[0]
 #%%
 # define neural network
 
@@ -53,8 +73,8 @@ def softmax(output):
 # Hidden Layer 2 -> [1 64]
 # Output Layer -> [1 10]
 # Equation -> y = ((trainX * weights1 + bias1) * weights2 + bias2) * weights3 + bias3
-hidden1_node = 512
-hidden2_node = 128
+hidden1_node = 700
+hidden2_node = 300
 weights1 = t.rand(hidden1_node, 784).float()
 bias1 = t.rand(hidden1_node, 1).float()
 weights2 = t.ones(hidden2_node, hidden1_node).float()
@@ -75,8 +95,8 @@ testX = testX.to(device)
 testY = testY.to(device)
 # bias3 = bias3.to(device)
 
-epoch = 150
-learningRate = 0.001
+epoch = 50
+learningRate = 1
 batchSize = 32
 # errors = []
 iteration = trainX.shape[0]
@@ -84,6 +104,7 @@ iteration = trainX.shape[0]
 
 for e in range(epoch):
     i = 0
+    running_loss = t.zeros(1).cuda()
     while i < iteration:
         # print('debug: ', i)
         # feed forward
@@ -103,7 +124,8 @@ for e in range(epoch):
         # output = t.mm(weights3, activation2) + bias3
         activation3 = softmax(t.mm(weights3, activation2) + bias3)
         # print('debug: ',error)
-
+        
+        running_loss += error_formula(Y, activation3)
         # backprop
         # calculate error for every nodes
         output_errors = Y - activation3
@@ -132,47 +154,24 @@ for e in range(epoch):
         bias1 += learningRate * bias1_grad
         
         i += batchSize 
-
-    # # calculate the error
-    temp = error_formula(Y, activation3)
-    # if len(errors) > 0:
-    #     if temp > errors[-1]:
-    #         if learningRate - 0.0001 > 0.0001:
-    #             learningRate -= 0.0001
-    # errors.append(temp)
-    
-    print('epoch:', e + 1, ' error:', temp, 'lr', learningRate)
-
-    if temp < 0.06:
-        save_weights1 = weights1
-        save_weights2 = weights2
-        save_weights3 = weights3
-        save_bias1 = bias1
-        save_bias2 = bias2
-        save_bias3 = bias3
+    if running_loss < 0.01:
+        print('error < 0.01 so stopping')
         break
     
-#%%
-def predict(X):
-	# Hidden Layer 1
-	hidden1 = t.mm(weights1, X.reshape(-1, 1)) + bias1
-	activation1 = sigmoid(hidden1)
-
-	# Hidden layer 2
-	hidden2 = t.mm(weights2, activation1) + bias2
-	activation2 = sigmoid(hidden2)
-	# Output Layer
-	output = t.mm(weights3, activation2) + bias3
-	activation3 = softmax(output)
-	return activation3
-
+    avg_loss = (running_loss / (iteration)).item()
+    accuracy = check_accuracy(testX, testY).item()
+    print('epoch:', e + 1, ' error: ' "{0:.5f}".format(avg_loss), 'validation_accuracy: ', "{0:.2f}".format(accuracy) )
+ 
 #%%
 guess = t.zeros(1).to(device)
-
+test = predict(testX).t()
 for i in range(testY.shape[0]):
-    test = predict(testX[i]).reshape(testY[i].shape)
-    if (test == test.max()).nonzero() == (testY[i] == max(testY[i])).nonzero():
+    
+    if (test[i] == test[i].max()).nonzero() == (testY[i] == testY[i].max()).nonzero():
         guess += 1
 
 print('accuracy: ', guess/testY.shape[0])
+
+#%%
+check_accuracy(testX, testY)
 #%%
